@@ -1,1 +1,178 @@
-Hello
+// pip install requests pandas
+
+import requests
+import json
+import pandas as pd
+
+# Replace with your Typeform API token and form ID
+API_TOKEN = "your_typeform_api_token"
+FORM_ID = "your_typeform_form_id"
+
+# Function to fetch responses from Typeform
+def get_typeform_responses():
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}"
+    }
+    
+    url = f"https://api.typeform.com/forms/{FORM_ID}/responses"
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch data. Status code: {response.status_code}")
+
+# Fetch responses
+typeform_data = get_typeform_responses()
+
+def parse_responses(typeform_data):
+    parsed_data = []
+
+    for response in typeform_data['items']:
+        answers = {}
+        for answer in response['answers']:
+            # Example: Mapping question IDs to meaningful field names
+            if answer['field']['id'] == "income_question_id":
+                answers['income'] = float(answer['number'])  # Assuming the answer is a number
+            elif answer['field']['id'] == "expenses_question_id":
+                answers['expenses'] = float(answer['number'])
+            elif answer['field']['id'] == "savings_goal_question_id":
+                answers['savings_goal'] = float(answer['number'])
+        
+        parsed_data.append(answers)
+
+    return pd.DataFrame(parsed_data)
+
+# Parse responses into a DataFrame
+df = parse_responses(typeform_data)
+print(df.head())
+
+def analyze_finances(df):
+    # Calculate disposable income
+    df['disposable_income'] = df['income'] - df['expenses']
+    
+    # Calculate the percentage of income saved towards the goal
+    df['savings_percentage'] = (df['savings_goal'] / df['income']) * 100
+
+    # Generate simple advice
+    df['advice'] = df.apply(lambda row: generate_advice(row), axis=1)
+    
+    return df
+
+def generate_advice(row):
+    if row['disposable_income'] < 0:
+        return "You are spending more than you earn. Consider cutting back on expenses."
+    elif row['savings_percentage'] < 20:
+        return "Try to save at least 20% of your income to secure your financial future."
+    else:
+        return "You're on track with your savings goal! Keep it up."
+
+# Analyze the finances and generate advice
+df_analysis = analyze_finances(df)
+print(df_analysis)
+
+def generate_report(df):
+    reports = []
+    
+    for _, row in df.iterrows():
+        report = f"""
+        Personalized Finance Report:
+        ---------------------------
+        Income: ${row['income']}
+        Expenses: ${row['expenses']}
+        Disposable Income: ${row['disposable_income']}
+        Savings Goal: ${row['savings_goal']}
+        Savings Percentage: {row['savings_percentage']:.2f}%
+        
+        Financial Advice: {row['advice']}
+        """
+        reports.append(report)
+    
+    return reports
+
+# Generate the report for all users
+reports = generate_report(df_analysis)
+for report in reports:
+    print(report)
+
+import requests
+import pandas as pd
+
+# Replace with your Typeform API token and form ID
+API_TOKEN = "your_typeform_api_token"
+FORM_ID = "your_typeform_form_id"
+
+# Function to fetch responses from Typeform
+def get_typeform_responses():
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}"
+    }
+    
+    url = f"https://api.typeform.com/forms/{FORM_ID}/responses"
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch data. Status code: {response.status_code}")
+
+# Parse the Typeform data into a DataFrame
+def parse_responses(typeform_data):
+    parsed_data = []
+
+    for response in typeform_data['items']:
+        answers = {}
+        for answer in response['answers']:
+            if answer['field']['id'] == "income_question_id":
+                answers['income'] = float(answer['number'])
+            elif answer['field']['id'] == "expenses_question_id":
+                answers['expenses'] = float(answer['number'])
+            elif answer['field']['id'] == "savings_goal_question_id":
+                answers['savings_goal'] = float(answer['number'])
+        
+        parsed_data.append(answers)
+
+    return pd.DataFrame(parsed_data)
+
+# Analyze financial data
+def analyze_finances(df):
+    df['disposable_income'] = df['income'] - df['expenses']
+    df['savings_percentage'] = (df['savings_goal'] / df['income']) * 100
+    df['advice'] = df.apply(lambda row: generate_advice(row), axis=1)
+    return df
+
+def generate_advice(row):
+    if row['disposable_income'] < 0:
+        return "You are spending more than you earn. Consider cutting back on expenses."
+    elif row['savings_percentage'] < 20:
+        return "Try to save at least 20% of your income to secure your financial future."
+    else:
+        return "You're on track with your savings goal! Keep it up."
+
+# Generate personalized finance reports
+def generate_report(df):
+    reports = []
+    for _, row in df.iterrows():
+        report = f"""
+        Personalized Finance Report:
+        ---------------------------
+        Income: ${row['income']}
+        Expenses: ${row['expenses']}
+        Disposable Income: ${row['disposable_income']}
+        Savings Goal: ${row['savings_goal']}
+        Savings Percentage: {row['savings_percentage']:.2f}%
+        
+        Financial Advice: {row['advice']}
+        """
+        reports.append(report)
+    return reports
+
+# Fetch responses, parse data, analyze finances, and generate reports
+typeform_data = get_typeform_responses()
+df = parse_responses(typeform_data)
+df_analysis = analyze_finances(df)
+reports = generate_report(df_analysis)
+
+# Print all reports
+for report in reports:
+    print(report)
