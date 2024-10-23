@@ -1,1 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyNLI Finance Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .report {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Get Your Personalized Finance Report</h1>
+        
+        <form id="financeForm">
+            <label for="income">Monthly Income ($):</label>
+            <input type="number" id="income" name="income" required>
+
+            <label for="expenses">Monthly Expenses ($):</label>
+            <input type="number" id="expenses" name="expenses" required>
+
+            <label for="savingsGoal">Monthly Savings Goal ($):</label>
+            <input type="number" id="savingsGoal" name="savingsGoal" required>
+
+            <button type="submit">Generate Report</button>
+        </form>
+
+        <div id="reportContainer" class="report" style="display: none;">
+            <h2>Personalized Finance Report</h2>
+            <p id="reportContent"></p>
+        </div>
+    </div>
+
+    <script>
+        // Handle form submission
+        document.getElementById('financeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Fetch form data
+            const income = document.getElementById('income').value;
+            const expenses = document.getElementById('expenses').value;
+            const savingsGoal = document.getElementById('savingsGoal').value;
+            
+            // Generate the personalized report
+            const disposableIncome = income - expenses;
+            const savingsPercentage = (savingsGoal / income) * 100;
+            let advice = "";
+
+            if (disposableIncome < 0) {
+                advice = "You are spending more than you earn. Consider cutting back on expenses.";
+            } else if (savingsPercentage < 20) {
+                advice = "Try to save at least 20% of your income to secure your financial future.";
+            } else {
+                advice = "You're on track with your savings goal! Keep it up.";
+            }
+
+            // Display the report
+            document.getElementById('reportContent').innerHTML = `
+                <strong>Income:</strong> $${income}<br>
+                <strong>Expenses:</strong> $${expenses}<br>
+                <strong>Disposable Income:</strong> $${disposableIncome}<br>
+                <strong>Savings Goal:</strong> $${savingsGoal}<br>
+                <strong>Savings Percentage:</strong> ${savingsPercentage.toFixed(2)}%<br>
+                <strong>Financial Advice:</strong> ${advice}
+            `;
+            document.getElementById('reportContainer').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
 
