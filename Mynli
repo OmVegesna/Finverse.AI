@@ -1,1 +1,76 @@
+//pip install nltk scikit-learn numpy pandas
 
+import nltk
+from nltk.stem import WordNetLemmatizer
+import numpy as np
+import random
+import string  # to process standard python strings
+
+nltk.download('punkt')
+nltk.download('wordnet')
+
+lemmatizer = WordNetLemmatizer()
+
+# Example preprocessing function
+def preprocess_input(text):
+    text = text.lower()  # Convert to lowercase
+    tokens = nltk.word_tokenize(text)  # Tokenize the input
+    tokens = [lemmatizer.lemmatize(token) for token in tokens if token not in string.punctuation]  # Lemmatize and remove punctuation
+    return tokens
+
+training_data = [
+    {"intent": "budgeting", "patterns": ["How do I create a budget?", "What is a budget?", "Budgeting tips"]},
+    {"intent": "investing", "patterns": ["How to invest money?", "Best investments for beginners", "How does investing work?"]},
+    {"intent": "saving", "patterns": ["How do I save more money?", "Best saving strategies", "How much should I save?"]},
+    {"intent": "credit", "patterns": ["How do credit scores work?", "How can I improve my credit score?", "What affects my credit score?"]},
+]
+
+categories = ["budgeting", "investing", "saving", "credit"]
+
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+# Prepare data for training
+def prepare_training_data(data):
+    texts = []
+    labels = []
+    for item in data:
+        for pattern in item["patterns"]:
+            texts.append(pattern)
+            labels.append(item["intent"])
+    return texts, labels
+
+texts, labels = prepare_training_data(training_data)
+
+# Convert text data into numerical features
+vectorizer = CountVectorizer(tokenizer=preprocess_input)
+X = vectorizer.fit_transform(texts)
+y = np.array(labels)
+
+# Train the Naive Bayes model
+model = MultinomialNB()
+model.fit(X, y)
+
+responses = {
+    "budgeting": "To create a budget, start by listing your income and expenses. Then, allocate your money based on your priorities and track your spending regularly.",
+    "investing": "Investing involves putting money into assets like stocks, bonds, or real estate in order to grow your wealth over time.",
+    "saving": "A good saving strategy is to set aside a percentage of your income each month. Aim for at least 20% if possible, but even small amounts can build up over time.",
+    "credit": "Credit scores are calculated based on your payment history, the amount of credit you use, and how long you’ve had credit accounts."
+}
+
+def chatbot_response(user_input):
+    user_input = [user_input]
+    X_user = vectorizer.transform(user_input)  # Convert user input into vector form
+    predicted_intent = model.predict(X_user)[0]  # Predict the intent category
+
+    # Fetch the appropriate response
+    return responses.get(predicted_intent, "I'm not sure how to answer that. Can you ask another financial question?")
+
+print("Mynli: Hi! I'm Mynli, your financial literacy assistant. How can I help you today?")
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == "exit":
+        print("Mynli: Goodbye!")
+        break
+    response = chatbot_response(user_input)
+    print(f"Mynli: {response}")
