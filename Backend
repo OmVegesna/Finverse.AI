@@ -1,1 +1,241 @@
+- /website-backend
+  - /controllers
+    - userController.js
+    - blogController.js
+    - mediumController.js
+  - /models
+    - User.js
+    - Blog.js
+  - /routes
+    - userRoutes.js
+    - blogRoutes.js
+    - mediumRoutes.js
+  - /middlewares
+    - authMiddleware.js
+  - /utils
+    - errorHandler.js
+  - server.js
+  - config.js
+
+npm init -y
+npm install express mongoose bcryptjs jsonwebtoken axios dotenv cors
+
+
+// config.js
+require('dotenv').config();
+
+module.exports = {
+    mongoURI: process.env.MONGO_URI || 'mongodb://localhost:27017/website-backend',
+    jwtSecret: process.env.JWT_SECRET || 'mysecrettoken',
+    mediumToken: process.env.MEDIUM_TOKEN,
+};
+
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const UserSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: 'user', enum: ['user', 'admin'] },
+}, { timestamps: true });
+
+UserSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
+
+UserSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
+        next();
+    }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+});
+
+module.exports = mongoose.model('User', UserSchema);
+
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const config = require('../config');
+
+// Create a token for users
+const generateToken = (id) => {
+    return jwt.sign({ id }, config.jwtSecret, { expiresIn: '1h' });
+};
+
+// Register a new user
+exports.registerUser = async (req, res) => {
+    const { username, email, password } = req.body;
+    try {
+        const user = new User({ username, email, password });
+        await user.save();
+        res.status(201).json({
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            token: generateToken(user._id),
+        });
+    } catch (error) {
+        res.status(400).json({ error: 'User registration failed' });
+    }
+};
+
+// Login user
+exports.loginUser = async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (user && (await user.matchPassword(password))) {
+            res.json({
+                _id: user._id,
+                username: user.username,
+                email: user.email,
+                token: generateToken(user._id),
+            });
+        } else {
+            res.status(401).json({ error: 'Invalid email or password' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Login failed' });
+    }
+};
+
+const express = require('express');
+const { registerUser, loginUser } = require('../controllers/userController');
+const router = express.Router();
+
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+
+module.exports = router;
+
+const mongoose = require('mongoose');
+
+const BlogSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+}, { timestamps: true });
+
+module.exports = mongoose.model('Blog', BlogSchema);
+
+const Blog = require('../models/Blog');
+
+// Get all blog posts
+exports.getAllPosts = async (req, res) => {
+    try {
+        const posts = await Blog.find().populate('author', 'username');
+        res.json(posts);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch posts' });
+    }
+};
+
+// Create a new blog post
+exports.createPost = async (req, res) => {
+    const { title, content } = req.body;
+    try {
+        const post = new Blog({
+            title,
+            content,
+            author: req.user.id,  // User ID from token
+        });
+        await post.save();
+        res.status(201).json(post);
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to create post' });
+    }
+};
+
+// Delete a blog post
+exports.deletePost = async (req, res) => {
+    try {
+        const post = await Blog.findById(req.params.id);
+        if (post.author.toString() !== req.user.id) {
+            return res.status(403).json({ error: 'User not authorized' });
+        }
+        await post.remove();
+        res.json({ message: 'Post removed' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete post' });
+    }
+};
+
+const express = require('express');
+const { getAllPosts, createPost, deletePost } = require('../controllers/blogController');
+const { protect } = require('../middlewares/authMiddleware');
+const router = express.Router();
+
+router.get('/', getAllPosts);
+router.post('/', protect, createPost);
+router.delete('/:id', protect, deletePost);
+
+module.exports = router;
+const axios = require('axios');
+const config = require('../config');
+
+exports.getMediumPosts = async (req, res) => {
+    try {
+        const response = await axios.get('https://api.medium.com/v1/me/publications', {
+            headers: {
+                Authorization: `Bearer ${config.mediumToken}`,
+            },
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch Medium posts' });
+    }
+};
+
+const express = require('express');
+const { getMediumPosts } = require('../controllers/mediumController');
+const router = express.Router();
+
+router.get('/medium-posts', getMediumPosts);
+
+module.exports = router;
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const config = require('../config');
+
+exports.protect = async (req, res, next) => {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, config.jwtSecret);
+            req.user = await User.findById(decoded.id).select('-password');
+            next();
+        } catch (error) {
+            res.status(401).json({ error: 'Not authorized, token failed' });
+        }
+    }
+
+    if (!token) {
+        res.status(401).json({ error: 'Not authorized, no token' });
+    }
+};
+
+const errorHandler = (err, req, res, next) => {
+    const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+    res.status(statusCode).json({ message: err.message });
+};
+
+module.exports = errorHandler;
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const config = require('./config');
+const userRoutes = require('./routes/userRoutes');
+const blogRoutes = require('./routes/blogRoutes');
+const mediumRoutes = require('./routes/mediumRoutes');
+const errorHandler = require('./utils/errorHandler');
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json
+
 
